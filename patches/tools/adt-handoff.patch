@@ -1,0 +1,101 @@
+diff --git a/scripts/unixnu/devicetree.py b/scripts/unixnu/devicetree.py
+--- a/scripts/unixnu/devicetree.py
++++ b/scripts/unixnu/devicetree.py
+@@ -186,6 +186,22 @@ def physical(bus, address, size):
+     return address
+ 
+ 
++ARM_IO_ALIGN = 1 << 24
++
++
++def arm_io_window(hardware):
++    """The arm-io window: child registers are offsets from its base, which XNU reads as the SoC base and requires to be non-zero."""
++    spans = [(physical(entry.parent, address, size), size) for entry in hardware if 'reg' in entry.properties
++             for address, size in registers(entry)]
++    if not spans:
++        return ARM_IO_ALIGN, ARM_IO_ALIGN
++    base = min(address for address, _ in spans) & ~(ARM_IO_ALIGN - 1)
++    top = -(-max(address + size for address, size in spans) // ARM_IO_ALIGN) * ARM_IO_ALIGN
++    if not base:
++        raise Error('arm-io needs a non-zero base: an exported register lies below 16 MiB')
++    return base, top - base
++
++
+ STRINGS = {'compatible', 'device_type', 'reg-names', 'interrupt-names', 'clock-names', 'method'}
+ U32 = {'phandle', 'linux,phandle', '#interrupt-cells', '#iommu-cells', '#clock-cells', 'clock-frequency', 'timebase-frequency'}
+ U64 = {'redistributor-stride'}
+@@ -193,8 +209,23 @@ FLAGS = {'interrupt-controller', 'dma-coherent'}
+ REFERENCES = {'interrupt-parent': None, 'iommus': '#iommu-cells', 'clocks': '#clock-cells'}
+ 
+ 
+-def hardware_properties(entry, handles):
++def phandle(entry):
++    values = {entry.scalar(key) for key in ('phandle', 'linux,phandle') if key in entry.properties}
++    if not values:
++        return None
++    if len(values) != 1 or values & {0, 0xffffffff}:
++        raise Error(f'{entry.name}: phandle aliases must agree and be valid nonzero handles')
++    return values.pop()
++
++
++def hardware_properties(entry, handles, base=0):
+     properties = []
++    handle = phandle(entry)
++    if handle is not None:
++        # IODTFindInterruptParent/AddPHandle use AAPL,phandle rather than the
++        # FDT property spelling. Preserve the numerical identity and the FDT
++        # aliases as well for native consumers of those properties.
++        properties.append(('AAPL,phandle', struct.pack('<I', handle)))
+     for key, raw in entry.properties.items():
+         if key in STRINGS:
+             entry.strings(key)
+@@ -216,6 +247,8 @@ def hardware_properties(entry, handles):
+                 target = handles.get(cells[index])
+                 if target is None or not target.enabled():
+                     raise Error(f'{entry.name}: unresolved {key} reference')
++                if key == 'interrupt-parent' and 'unixnu,adt-name' not in target.properties:
++                    raise Error(f'{entry.name}: interrupt parent is not exported to ADT')
+                 count = target.scalar(REFERENCES[key]) if REFERENCES[key] else 0
+                 index += count + 1
+             if index != len(cells) or not cells:
+@@ -231,11 +264,13 @@ def hardware_properties(entry, handles):
+             width = controller.scalar('#interrupt-cells') if controller else 0
+             if not width or len(cells) % width:
+                 raise Error(f'{entry.name}: interrupt provider or specifier is invalid')
++            if 'unixnu,adt-name' not in controller.properties:
++                raise Error(f'{entry.name}: interrupt parent is not exported to ADT')
+             properties.append((key, struct.pack(f'<{len(cells)}I', *cells)))
+             if 'interrupt-parent' not in entry.properties:
+                 properties.append(('interrupt-parent', struct.pack('<I', handle)))
+         elif key == 'reg':
+-            pairs = [(physical(entry.parent, address, size), size) for address, size in registers(entry)]
++            pairs = [(physical(entry.parent, address, size) - base, size) for address, size in registers(entry)]
+             properties.append((key, b''.join(struct.pack('<QQ', *pair) for pair in pairs)))
+     return properties
+ 
+@@ -263,9 +298,9 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon=False):
+     entries = list(root.walk())
+     handles = {}
+     for entry in entries:
+-        if 'phandle' in entry.properties:
+-            handle = entry.scalar('phandle')
+-            if not handle or handle in handles:
++        handle = phandle(entry)
++        if handle is not None:
++            if handle in handles:
+                 raise Error('FDT phandles must be unique and nonzero')
+             handles[handle] = entry
+     payload, platform = config.get('payload', {}), config.get('adt', {})
+@@ -333,9 +368,10 @@ def generate(dtb, config, *, unique_chip_id=None, data=False, trust=False, addon=False):
+     names = [entry.strings('unixnu,adt-name')[0] for entry in hardware]
+     if len(set(names)) != len(names):
+         raise Error('Exported ADT hardware names must be unique')
++    base, size = arm_io_window(hardware)
+     children.append(node('arm-io', [('device_type', b'arm-io\0'), ('#address-cells', struct.pack('<I', 2)),
+-                         ('#size-cells', struct.pack('<I', 2)), ('ranges', struct.pack('<QQQ', 0, 0, 0x100000000))],
+-                         [node(name, hardware_properties(entry, handles)) for name, entry in zip(names, hardware)]))
++                         ('#size-cells', struct.pack('<I', 2)), ('ranges', struct.pack('<QQQ', 0, base, size))],
++                         [node(name, hardware_properties(entry, handles, base)) for name, entry in zip(names, hardware)]))
+     for name in ('defaults', 'options', 'product', 'buttons'):
+         if name in platform or name in ('defaults', 'options', 'product'):
+             children.append(node(name, typed_properties(platform.get(name, {}))))

@@ -1,0 +1,32 @@
+--- a/NativeAdrenoMetalPlugin.mm
++++ b/NativeAdrenoMetalPlugin.mm
+@@ -66,6 +66,7 @@
+ static std::string gCacheDirectory;   // the runtime's cache directory (the one that opened the device), exported by CacheExport.h
+ // Progress markers 0x68xx (GPU6): 6800 entered, 6801 Turnip found, 6802 device made, 6803 returned to the discovery, 68f1 no Turnip, 68f2 no device.
+ static unsigned gDiagBits;
++#if defined(VENUS_METAL_PRIVATE_DISPLAY_EXPERIMENT)
+ // Reads of the render server's own state for the framebuffer-format question (diagnostic only, for the exact QuartzCore of the target image; a read
+ // that fails or a build that differs reports zeros). Each value is one marker, 0x7Kvv: K picks the item, vv the value.
+ static bool readTask(uintptr_t address, void *out, size_t size) {
+@@ -140,6 +141,9 @@
+         markSample(gpu, now, 0xA000);
+     } @catch (NSException *) {}
+ }
++#else
++static void reportDisplayState(Gpu &gpu) {(void)gpu;}
++#endif
+ // Whether NativeAdrenoMetal.clients names this process (names separated by blanks, commas or new lines; "*" names every process).
+ static bool listedClient() {
+     char path[1024];
+--- a/NativeBridgeMetalFrontend.mm
++++ b/NativeBridgeMetalFrontend.mm
+@@ -1949,6 +1949,6 @@
+ #if TARGET_OS_IPHONE
+- // The target's base class ABI: 536 bytes on iPadOS 17.7.11, 656 on iOS 26.5 (23F84). The dynamic subclass adds no instance
+- // variables and reaches the base only through selectors, so either size is served.
+- if(!base || (class_getInstanceSize(base)!=536 && class_getInstanceSize(base)!=656)){
++ // Venus targets iPadOS17/21H461. Keep its536-byte private base contract.
++ // Additional generic selectors do not authorize loading on a different OS ABI.
++ if([[NSProcessInfo processInfo] operatingSystemVersion].majorVersion!=17 || !base || class_getInstanceSize(base)!=536){
+   NBLOG(@"native-metal: unexpected _MTLDevice ABI (%zu bytes)",base?class_getInstanceSize(base):0);return nil;}
+ #endif

@@ -1,0 +1,4 @@
+[[source]]
+kind = "soc"
+name = "sm8350"
+local = "../UniXNU-sm8350-common"

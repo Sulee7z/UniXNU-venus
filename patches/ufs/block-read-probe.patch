@@ -1,0 +1,140 @@
+--- a/NativeUfs.cpp
++++ b/NativeUfs.cpp
+@@ -38,6 +38,17 @@
+ #include "TransferPoll.h"
+ #include "SmmuTakeover.h"
+ #include "VenusUfsSurvey.h"
++#include "VenusUfsReadPlan.h"
++
++// Qualcomm SMMU trap implementations can mishandle STR WZR. The "r"
++// constraint (not "rZ") requires a real source register even for zero.
++__attribute__((noinline)) static void venusSmmuWrite(uintptr_t address, uint32_t value)
++{
++  __asm__ volatile("dsb sy\nstr %w0, [%1]\ndsb sy" :: "r"(value), "r"(address) : "memory");
++}
++
++static void venusBlockReadProbe(void);
++static void venusBankRefusal(const VenusUfsReadPlan::Plan &plan);
+ 
+ static UfsRootDiagnostics gRootDiagnostic;
+ static bool gRootDiagnosticEnabled;
+@@ -347,7 +358,11 @@
+-  UfsSmmuPlan plan = planUfsSmmu (stream, dma, bytes, [smmu](unsigned offset) { return read32 (smmu, offset); }, UFS_RETARGET_EXACT_STREAM);
++  if (stream != 0xe0) panic("VENUS UFS unexpected stream");
++  auto checked = VenusUfsReadPlan::prepare(dma, bytes, [smmu](unsigned o) { return read32(smmu, o); });
++  UfsSmmuPlan plan = checked.route;
++  if (checked.error) plan.error = checked.error;
+   gRootDiagnostic.smmuId1 = read32 (smmu, 0x24);
+   gRootDiagnostic.smmuId2 = read32 (smmu, 0x28);
+   gRootDiagnostic.smmuSlot = plan.slot;
++  gRootDiagnostic.smmuBank = plan.bank;
+   if (plan.error) {
+     gRootDiagnostic.stage = "SMMU planning";
+     gRootDiagnostic.result = static_cast<uint32_t> (kIOReturnNotReady);
+@@ -360,7 +373,6 @@
+-  const char *failure = configureUfsSmmu (plan, stream,
++  const char *failure = VenusUfsReadPlan::configure (checked,
+     [smmu](unsigned offset) { return read32 (smmu, offset); },
+     [smmu](unsigned offset, uint32_t value) {
+-      write32 (smmu, offset, value);
+-      __asm__ volatile ("dsb sy" ::: "memory");
++      venusSmmuWrite(smmu + offset, value);
+     });
+   uint32_t smr = read32 (smmu, 0x800 + 4 * index), s2cr = read32 (smmu, 0xc00 + 4 * index);
+@@ -986,4 +999,18 @@
+   uint32_t report[3] = { 0, 0, 0 };
+   gRootDiagnostic.stage = "SMMU and request list";
++  // Check the full allocated extent and candidate context before stopping
++  // either firmware queue. Configuration repeats the ownership check later.
++  uintptr_t smmuBefore = mapPhys(0x15000000, 0xd0000, gHost.smmuMap);
++  if (!smmuBefore) { *why = "SMMU preflight map"; return false; }
++  auto preflight = VenusUfsReadPlan::prepare(gHost.phys, kDmaBytes,
++    [smmuBefore](unsigned o) { return read32(smmuBefore, o); });
++  gRootDiagnostic.smmuId1 = preflight.idr1;
++  gRootDiagnostic.smmuId2 = preflight.idr2;
++  gRootDiagnostic.smmuSlot = preflight.route.slot;
++  if (preflight.error) {
++    venusBankRefusal(preflight);
++    *why = preflight.error; return false;
++  }
++
+   if (!hostStopQueue (why)) return false;
+   smmuBypassStream (UFS_STREAM_ID, gHost.smmuMap, report, gHost.phys, kDmaBytes);
+@@ -1054,3 +1077,5 @@
+ }
+ 
++#include "VenusUfsReadProbe.h"
++
+ // ---- Persistent Data store window (sheng-data-persist) ----------------------------------------------------------
+@@ -1342,3 +1367,3 @@
+-  formatUfsRootDiagnostics (gRootDiagnosticText, sizeof (gRootDiagnosticText), gRootDiagnostic, reason);
++  formatUfsRootDiagnostics (gRootDiagnosticText, sizeof (gRootDiagnosticText), gRootDiagnostic, reason, "VENUS UFS BLOCK READ");
+   strlcat (gRootDiagnosticText, gRootMediaText, sizeof (gRootDiagnosticText));
+   panic ("%s", gRootDiagnosticText);
+@@ -1833,5 +1858,6 @@
+-  if (rootMode || probe != 2) {
++  if (rootMode || (probe != 2 && probe != 3)) {
+     native_ufs_status = kIOReturnUnsupported;
+-    panic("VENUS_UFS readonly build refused probe=%u root=%u", probe, rootMode);
++    panic("VENUS_UFS block-read build refused probe=%u root=%u", probe, rootMode);
+   }
++  if (probe == 3) venusBlockReadProbe();
+   venusReadOnlySurvey();
+--- a/RootDiagnostics.h
++++ b/RootDiagnostics.h
+@@ -19,3 +19,4 @@
+   uint32_t smmuId1 = 0, smmuSlot = 0xffffffff;
++  uint32_t smmuBank = 0xffffffff;
+   uint32_t publicationPhase = 0, publicationWindow = 0xffffffff;
+ };
+@@ -31,3 +32,3 @@
+     "CMD n=%u type=%02x op=%02x lun=%02x ocs=%02x rsp=%08x scsi=%04x power=%02x\n"
+-    "PROTOCOL reject=%u residual=%u sense=%06x SMMU slot=%u id1=%x\n"
++    "PROTOCOL reject=%u residual=%u sense=%06x SMMU slot=%u bank=%u id1=%x\n"
+     "QUEUE rsr=%x ahit=%x polls=%u dbSeen=%x isSeen=%x isBefore=%x contiguous=%llx\n"
+@@ -41,3 +42,3 @@
+     d.command, d.type, d.opcode, d.lun, d.ocs, d.response, d.scsi, d.power,
+-    d.protocol, d.residual, d.sense, d.smmuSlot, d.smmuId1,
++    d.protocol, d.residual, d.sense, d.smmuSlot, d.smmuBank, d.smmuId1,
+     d.runStop, d.ahit, d.polls, d.dbSeen, d.isSeen, d.isBefore, (unsigned long long)d.contiguous,
+--- a/RootCommands.h
++++ b/RootCommands.h
+@@ -1,6 +1,10 @@
+ // SPDX-License-Identifier: BSD-2-Clause-Patent
+ // Shared production command path. Included inside the root transport namespace.
+ // The host harness replaces only MMIO, DMA synchronization, clock and lock primitives.
++#if defined(NATIVE_UFS_BLOCK_READ_PROBE) && NATIVE_UFS_BLOCK_READ_PROBE
++#include "VenusUfsReadCommands.h"
++static VenusUfsReadCommands::Scope gVenusReadScope;
++#endif
+ struct HardwareTransferPort {
+   uint64_t deadline;
+   uint32_t doorbell () { return read32 (gHost.hc, 0x58); }
+@@ -35,3 +39,6 @@
+   *ocs = 15;
++#if defined(NATIVE_UFS_BLOCK_READ_PROBE) && NATIVE_UFS_BLOCK_READ_PROBE
++  if (direction == 1) return kIOReturnUnsupported;
++#endif
+   if (!timeoutUs || dataBytes > kDataMax || (dataBytes & 3) ||
+       (dataBytes ? (direction != 1 && direction != 2) : direction != 0)) return kIOReturnBadArgument;
+@@ -166,3 +173,7 @@
+   *scsiStatus = 0xffff;
++#if defined(NATIVE_UFS_BLOCK_READ_PROBE) && NATIVE_UFS_BLOCK_READ_PROBE
++  if (!VenusUfsReadCommands::allowed(gVenusReadScope, lun, cdb, cdbLength, direction, dataBytes))
++    return kIOReturnUnsupported;
++#endif
+   if (!cdb || !cdbLength || cdbLength > 16 || dataBytes > kDataMax || direction > 2 ||
+       (dataBytes & 3) || (dataBytes ? !direction : direction)) return kIOReturnBadArgument;
+@@ -294,3 +305,6 @@
+ {
++#if defined(NATIVE_UFS_BLOCK_READ_PROBE) && NATIVE_UFS_BLOCK_READ_PROBE
++  return kIOReturnUnsupported;
++#endif
+   if (!gHost.ready || !src || !blocks || blocks > kDataMax / 4096 || lun != 0 || !hostInWindow (lba, blocks)) {
+     return kIOReturnBadArgument;
+--- a/tests/RootCommands.cpp
++++ b/tests/RootCommands.cpp
+@@ -123,2 +123,3 @@
+   puts("PASS: actual command/queue path; malformed DMA responses, bounds, short reads, sense, quarantine, queue refusal and full-width DMA");
++  return 0;
+ }

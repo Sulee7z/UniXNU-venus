@@ -1,0 +1,75 @@
+--- a/NativeUfs.cpp
++++ b/NativeUfs.cpp
+@@ -37,6 +37,7 @@
+ #include "RootDiagnostics.h"
+ #include "TransferPoll.h"
+ #include "SmmuTakeover.h"
++#include "VenusUfsSurvey.h"
+ 
+ static UfsRootDiagnostics gRootDiagnostic;
+ static bool gRootDiagnosticEnabled;
+@@ -178,3 +179,48 @@
++static void venusReadOnlySurvey(void)
++{
++  OSSharedPtr<IOMemoryMap> gccMap, hostMap, smmuMap;
++  uintptr_t gcc = mapPhys(GCC_BASE + 0x77000, 0x1000, gccMap);
++  uintptr_t host = 0, smmu = 0;
++  auto result = VenusUfsSurvey::collect(
++    [&](unsigned offset, uint32_t &value) {
++      if (!gcc || offset > 0xffc || (offset & 3)) return false;
++      value = read32(gcc, offset); return true;
++    },
++    [&](unsigned offset, uint32_t &value) {
++      if (offset > UFS_HC_SIZE - 4 || (offset & 3)) return false;
++      if (!host) host = mapPhys(UFS_HC_BASE, UFS_HC_SIZE, hostMap);
++      if (!host) return false;
++      value = read32(host, offset); return true;
++    },
++    [&](unsigned offset, uint32_t &value) {
++      if (offset > 0xcfffc || (offset & 3)) return false;
++      if (!smmu) smmu = mapPhys(0x15000000, 0xd0000, smmuMap);
++      if (!smmu) return false;
++      value = read32(smmu, offset); return true;
++    });
++  native_ufs_mapped = result.hcRead;
++  native_ufs_cap = result.cap;
++  native_ufs_version = result.version;
++  native_ufs_hcs = result.hcs;
++  native_ufs_hce = result.hce;
++  panic("VENUS UFS READ-ONLY err=%x\n"
++        "gdsc=%08x axi=%08x ahb=%08x\n"
++        "unipro=%08x aggr=%08x hc_read=%u\n"
++        "cap=%08x ver=%08x hcs=%08x hce=%08x\n"
++        "is=%08x ie=%08x\n"
++        "utrl=%llx run=%x db=%x\n"
++        "utmr=%llx run=%x db=%x\n"
++        "smmu=%u scr0=%x id0=%x id1=%x gfsr=%x\n"
++        "sid=e0 matches=%u slot=%x smr=%x s2cr=%x\n"
++        "cb_read=%u cb=%x users=%u cbar=%x cba2r=%x\n"
++        "sctlr=%x ttbr0=%llx",
++        result.errors, result.gdsc, result.axi, result.ahb, result.unipro, result.aggregate, result.hcRead,
++        result.cap, result.version, result.hcs, result.hce, result.is, result.ie,
++        result.transferBase, result.transferRun, result.transferDoorbell, result.taskBase, result.taskRun, result.taskDoorbell,
++        result.smmuRead, result.scr0, result.idr0, result.idr1, result.gfsr, result.matches, result.slot, result.smr, result.s2cr,
++        result.cbRead, result.cb, result.users, result.cbar, result.cba2r, result.sctlr, result.ttbr0);
++}
++
+ void NativeUfs::inspect (void)
+ {
+   OSSharedPtr<IOMemoryMap> gccMap, memPhyMap, hcMap;
+@@ -1782,6 +1828,15 @@
+   PE_parse_boot_argn ("native-ufs-probe", &probe, sizeof (probe));
+   PE_parse_boot_argn ("native-ufs-root", &rootMode, sizeof (rootMode));
+   native_ufs_probe_requested = probe != 0;
++#if defined(NATIVE_UFS_READONLY_SURVEY) && NATIVE_UFS_READONLY_SURVEY
++  if ((!probe && !rootMode) || !OSDynamicCast(IOPlatformExpertDevice, provider)) return false;
++  if (rootMode || probe != 2) {
++    native_ufs_status = kIOReturnUnsupported;
++    panic("VENUS_UFS readonly build refused probe=%u root=%u", probe, rootMode);
++  }
++  venusReadOnlySurvey();
++  return false;
++#endif
+   // Default: match for observability only, never touch the controller. Hardware work runs once,
+   // from the root-device personality; the ufshc nub match stays observation-only.
+   if ((!probe && !rootMode) || !OSDynamicCast (IOPlatformExpertDevice, provider)) {

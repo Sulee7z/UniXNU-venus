@@ -1,0 +1,79 @@
+# Prepared iPhone target, not the active iPadOS profile.
+# Native source remains xnu-10063.141.1 while this restore's kernel reports
+# 10063.142.1.700.5. Prelink/ABI migration and arm64e handling are not qualified.
+[os]
+name = "ios-17.7-21H16"
+darwin = "23.6.0"
+xnu_version = "10063.141.1"
+xnu_revision = "d8b80295118ef25ac3a784134bcf95cd8e88109f"
+target_kernel_version = "10063.142.1.700.5"
+native_source_retained = true
+driverkit_tag = "xnu-10063.121.3"
+trustcache_tag = "xnu-8796.101.5"
+abi = ["IOGPUFamily", "IOHIDFamily", "IOMobileGraphicsFamily", "IOStorageFamily"]
+kernelcache_arm64e = true
+prelink_arm64e_qualified = false
+root_match_volume_uuid = "1104DA02-BEB4-484A-80C1-584C109E73F1"
+
+[ipsw]
+url = "https://updates.cdn-apple.com/2024FallFCS/fullrestores/062-79020/99513170-4693-44A2-8D10-3DDCDC053B51/iPhone11,8_17.7_21H16_Restore.ipsw"
+product = "iPhone11,8"
+version = "17.7"
+build = "21H16"
+device_class = "n841ap"
+chip_id = 32800
+board_id = 12
+fetch = ["KernelCache", "DeviceTree", "StaticTrustCache", "Cryptex1,SystemTrustCache", "OS", "Cryptex1,SystemOS"]
+
+[ipsw.sha256]
+"kernelcache.release.iphone11b" = "1ee8e6d550096e5f8787b61a5fc034e77a371c30d8e9ec36bba751572033d7ba"
+"DeviceTree.n841ap.im4p" = "0b7882373dcbab059bb64ed2f502ed26af7e9dfa3555308e35a6113744b1561d"
+"044-17556-018.dmg" = "17a6f96f849a7d9bdb178b35e06fa191bffaaeee7e4c73aab834d0ce401e1dcd"
+"044-18189-018.dmg" = "52b08921d176b5f185e9a988e4728e2225035dcc8d0ea9a039748149656f4889"
+"044-17556-018.dmg.trustcache" = "3bb896ae01d2e15e72acb5615e002cf26c6d02696e72774fda7c421128f73da4"
+"044-18189-018.dmg.trustcache" = "265de7e099775cb6f54da0834475751918711e43b1b539f104c38dee34e5d0a0"
+
+[kernel.prelink]
+kernelcache_sha256 = "1ee8e6d550096e5f8787b61a5fc034e77a371c30d8e9ec36bba751572033d7ba"
+
+[adt.root.string]
+model = "iPhone11,8"
+target-type = "N841"
+
+[adt.chosen.string]
+osenvironment = "main"
+crypto-hash-method = "sha2-384"
+
+[adt.chosen.u32]
+certificate-production-status = 0
+effective-production-status-ap = 0
+certificate-security-mode = 1
+effective-security-mode-sep = 1
+amfi-only-platform-code = 1
+display-scale = 2
+display-rotation = 0
+
+[adt.product.string]
+product-name = "iPhone XR"
+product-description = "iPhone XR"
+artwork-device-idiom = "phone"
+artwork-display-gamut = "P3"
+compatible-device-fallback = "iPhone10,3"
+
+[adt.product.u32]
+artwork-device-subtype = 1792
+artwork-scale-factor = 2
+thin-bezel = 1
+
+[adt.buttons.string]
+compatible = "buttons"
+device_type = "buttons"
+
+[adt.buttons.strings]
+button-names = ["hold", "voldown", "volup"]
+
+[adt.buttons.u32]
+home-button-type = 2
+
+[adt.defaults.u32]
+sleep-disabled = 1

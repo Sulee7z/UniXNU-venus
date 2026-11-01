@@ -1,0 +1,25 @@
+/dts-v1/;
+/include/ "sm8350.dtsi"
+
+/ {
+    model = "Xiaomi Mi 11 M2011K2C";
+    compatible = "xiaomi,venus", "qcom,sm8350";
+    memory@c0000000 {
+        device_type = "memory";
+        reg = <0 0xc0000000 1 0xc0000000>;
+    };
+};
+
+/include/ "venus-reserved.dtsi"
+
+// Affinities are the measured Venus values, not Apple's CPU numbering.
+// Keep the first multi-core candidate symmetric; E/P scheduling is a separate
+// kernel policy change and must not invent Apple CPU registers.
+&cpu0 { status = "okay"; };
+&cpu1 { status = "okay"; };
+&cpu2 { status = "okay"; };
+&cpu3 { status = "okay"; };
+&cpu4 { status = "okay"; };
+&cpu5 { status = "okay"; };
+&cpu6 { status = "okay"; };
+&cpu7 { status = "okay"; };

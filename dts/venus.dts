@@ -1,0 +1,19 @@
+/dts-v1/;
+/include/ "sm8350.dtsi"
+
+/ {
+    model = "Xiaomi Mi 11 M2011K2C";
+    compatible = "xiaomi,venus", "qcom,sm8350";
+
+    // One real contiguous DRAM bank for the shared ADT generator. The other
+    // bank and all reservations remain documented in evidence/hardware.json.
+    // This describes DRAM, not allocatable RAM: UEFI owns the memory map.
+    memory@c0000000 {
+        device_type = "memory";
+        reg = <0 0xc0000000 1 0xc0000000>;
+    };
+};
+
+/include/ "venus-reserved.dtsi"
+
+&cpu0 { status = "okay"; };

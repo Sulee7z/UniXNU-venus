@@ -1,0 +1,11 @@
+local.toml
+.cache/
+out/
+__pycache__/
+*.pyc
+
+# Local verification outputs stay out of the published repository. The phone
+# serial, partition offsets and image hashes are not published here.
+evidence/
+board.toml.pre-*
+*.pre-bootprog

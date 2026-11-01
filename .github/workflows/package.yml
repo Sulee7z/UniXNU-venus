@@ -1,0 +1,99 @@
+name: Device package
+
+# Packages this device from a clean checkout: one boot image and one payload,
+# plus the kernel and manifest the packager writes. Board values come from
+# board.toml; the firmware checkout is not published in any repository, so it
+# is supplied as a repository variable (or workflow input).
+#
+# Required repository settings:
+#   secret   UNIXNU_UNIQUE_CHIP_ID    platform seed as 8 hex digits, never committed
+#   variable UNIXNU_UEFI_REPOSITORY   firmware repository, e.g. OWNER/uefi-venus
+#   variable UNIXNU_UEFI_REF          firmware commit or branch to build
+#
+# Documentation: https://unixnu.com/porting/packaging
+
+on:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: OS profile from board.toml (empty uses the board default)
+        required: false
+        default: ''
+      uefi_repository:
+        description: Firmware repository (OWNER/NAME); defaults to the repository variable
+        required: false
+        default: ''
+      uefi_ref:
+        description: Firmware commit or branch; defaults to the repository variable
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-14
+    env:
+      UNIXNU_UEFI_REPOSITORY: ${{ inputs.uefi_repository || vars.UNIXNU_UEFI_REPOSITORY }}
+      UNIXNU_UEFI_REF: ${{ inputs.uefi_ref || vars.UNIXNU_UEFI_REF }}
+    steps:
+      - name: Require the platform seed and firmware source
+        run: |
+          set -euo pipefail
+          [ -n "${UNIXNU_UNIQUE_CHIP_ID:-}" ] || { echo 'secret UNIXNU_UNIQUE_CHIP_ID is not set' >&2; exit 1; }
+          [ -n "$UNIXNU_UEFI_REPOSITORY" ] || { echo 'variable UNIXNU_UEFI_REPOSITORY is not set' >&2; exit 1; }
+          [ -n "$UNIXNU_UEFI_REF" ] || { echo 'variable UNIXNU_UEFI_REF is not set' >&2; exit 1; }
+        env:
+          UNIXNU_UNIQUE_CHIP_ID: ${{ secrets.UNIXNU_UNIQUE_CHIP_ID }}
+
+      - name: Check out the device repository
+        uses: actions/checkout@v4
+        with:
+          path: device
+
+      - name: Check out UniXNU beside the device repository
+        uses: actions/checkout@v4
+        with:
+          repository: UniXNU/UniXNU
+          path: UniXNU
+
+      - name: Check out the firmware beside the device repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UNIXNU_UEFI_REPOSITORY }}
+          ref: ${{ env.UNIXNU_UEFI_REF }}
+          path: uefi
+          submodules: recursive
+
+      - name: Install the host tools the packaging steps require
+        run: |
+          set -euo pipefail
+          brew install dtc llvm lld cmake mtools blacktop/tap/ipsw
+          for tool in dtc llvm-config lld cmake mformat ipsw python3; do
+            command -v "$tool" >/dev/null || { echo "missing tool: $tool" >&2; exit 1; }
+          done
+
+      - name: Package
+        working-directory: device
+        env:
+          UNIXNU_UNIQUE_CHIP_ID: ${{ secrets.UNIXNU_UNIQUE_CHIP_ID }}
+          UNIXNU_UEFI: ${{ github.workspace }}/uefi
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.os }}" ]; then
+            scripts/package.sh --os "${{ inputs.os }}"
+          else
+            scripts/package.sh
+          fi
+
+      - name: Upload the boot image, payload, kernel and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-package
+          if-no-files-found: error
+          path: |
+            device/out/**/boot/boot.img
+            device/out/**/payload/payload.img
+            device/out/**/kernel/kernel.macho
+            device/out/**/package.manifest.json

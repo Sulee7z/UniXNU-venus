@@ -1,0 +1,37 @@
+/dts-v1/;
+/ {
+    #address-cells = <2>;
+    #size-cells = <2>;
+    model = "QEMU shared-generator IRQ regression";
+    compatible = "linux,dummy-virt";
+    memory@40000000 { device_type = "memory"; reg = <0 0x40000000 0 0x40000000>; };
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        // CNTFRQ observed with the selected QEMU 8 cortex-a710 model.
+        timebase-frequency = <1000000000>;
+        cpu@0 { device_type = "cpu"; compatible = "arm,cortex-a710"; reg = <0>; };
+    };
+    soc {
+        compatible = "simple-bus";
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+        gic: interrupt-controller@8000000 {
+            compatible = "arm,gic-v3";
+            unixnu,adt-name = "intc";
+            reg = <0 0x08000000 0 0x10000>, <0 0x080a0000 0 0xf60000>;
+            interrupt-controller;
+            #interrupt-cells = <3>;
+            #address-cells = <0>;
+            redistributor-stride = <0 0x20000>;
+        };
+    };
+    timer {
+        compatible = "arm,armv8-timer";
+        unixnu,adt-name = "timer";
+        interrupt-parent = <&gic>;
+        interrupts = <1 13 4>, <1 14 4>, <1 11 4>, <1 10 4>;
+        clock-frequency = <1000000000>;
+    };
+};

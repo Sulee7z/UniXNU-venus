@@ -1,0 +1,66 @@
+--- a/NativeUfs.cpp
++++ b/NativeUfs.cpp
+@@ -48,4 +48,4 @@
+-static void venusBlockReadProbe(void);
++static bool venusRootClocksReady(void);
+ static void venusBankRefusal(const VenusUfsReadPlan::Plan &plan);
+ 
+ static UfsRootDiagnostics gRootDiagnostic;
+@@ -964,3 +964,4 @@
+   gRootDiagnostic.stage = "controller map";
++  if (!venusRootClocksReady()) { *why = "UFS power/clock preflight"; return false; }
+   gHost.hc = mapPhys (UFS_HC_BASE, UFS_HC_SIZE, gHost.hcMap);
+   if (!gHost.hc) {
+@@ -1080,3 +1081,3 @@
+-#include "VenusUfsReadProbe.h"
++#include "VenusUfsRootReport.h"
+ 
+ // ---- Persistent Data store window (sheng-data-persist) ----------------------------------------------------------
+@@ -1367,3 +1368,3 @@
+-  formatUfsRootDiagnostics (gRootDiagnosticText, sizeof (gRootDiagnosticText), gRootDiagnostic, reason, "VENUS UFS BLOCK READ");
++  formatUfsRootDiagnostics (gRootDiagnosticText, sizeof (gRootDiagnosticText), gRootDiagnostic, reason, "VENUS UFS ROOT");
+   strlcat (gRootDiagnosticText, gRootMediaText, sizeof (gRootDiagnosticText));
+   panic ("%s", gRootDiagnosticText);
+@@ -1400,3 +1401,3 @@
+-static inline uint64_t timerTicks (void) {uint64_t v; __asm__ volatile ("isb\n\tmrs %0, cntpct_el0" : "=r" (v)); return v;}
++static inline uint64_t timerTicks (void) {uint64_t v; __asm__ volatile ("isb\n\tmrs %0, cntvct_el0" : "=r" (v)); return v;}
+ #if defined(NATIVE_VERIFIED_BLOCK) && NATIVE_VERIFIED_BLOCK
+ volatile uint64_t native_ufs_verified_blocks = 0;
+@@ -1423,3 +1424,5 @@
++#if !defined(NATIVE_UFS_POLICY_FROM_DISK) || !NATIVE_UFS_POLICY_FROM_DISK
+   const uint8_t *manifest = nullptr;
++#endif
+   uint64_t manifestBytes = 0;
+ #if defined(NATIVE_UFS_POLICY_FROM_DISK) && NATIVE_UFS_POLICY_FROM_DISK
+@@ -1854,3 +1857,13 @@
+   native_ufs_probe_requested = probe != 0;
++#if defined(NATIVE_UFS_ROOT_BOOT) && NATIVE_UFS_ROOT_BOOT
++  if ((!probe && !rootMode) || !OSDynamicCast(IOPlatformExpertDevice, provider)) return false;
++  if (probe == 2 && !rootMode) { venusReadOnlySurvey(); return false; }
++  if (probe || rootMode != 1) {
++    native_ufs_status = kIOReturnUnsupported;
++    panic("VENUS_UFS root build refused probe=%u root=%u", probe, rootMode);
++  }
++  gRootDiagnosticEnabled = true;
++  return startRoot(provider);
++#endif
+ #if defined(NATIVE_UFS_READONLY_SURVEY) && NATIVE_UFS_READONLY_SURVEY
+   if ((!probe && !rootMode) || !OSDynamicCast(IOPlatformExpertDevice, provider)) return false;
+--- a/RootCommands.h
++++ b/RootCommands.h
+@@ -310,3 +310,8 @@
+   IOLockLock (gHost.lock);
++  // Another thread may have poisoned the transport while this writer waited.
++  if (!gHost.ready || !hostClearUcd()) {
++    IOLockUnlock(gHost.lock);
++    return kIOReturnNotReady;
++  }
+   gRootDiagnostic.lba = lba;
+   memcpy (gHost.virt + kDataOffset, src, blocks * 4096U);
+--- a/tests/RootCommandsBridge.cpp
++++ b/tests/RootCommandsBridge.cpp
+@@ -38,3 +38,3 @@
+-static void IOLockLock(void *) {}
++static void IOLockLock(void *) { callback(6, 0, 0, nullptr); }
+ static void IOLockUnlock(void *) {}
+ static IOReturn recordTransport(IOReturn result,uint32_t ocs) {

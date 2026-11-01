@@ -1,0 +1,104 @@
+--- a/NativeRamBlock.cpp
++++ b/NativeRamBlock.cpp
+@@ -47,5 +47,8 @@
+ }
+ 
++class NativeRamBlock;
++static NativeRamBlock *deferredData = nullptr;
++
+ class NativeRamBlock : public IOBlockStorageDevice {
+   OSDeclareDefaultStructors(NativeRamBlock)
+   IOLock *gate = nullptr;
+@@ -146,6 +149,25 @@
+     IOLockUnlock(gate);
+   }
+ 
++  // Called by the original post-SystemOS Data selection path, before APFS
++  // gets any media from this provider. Never publish a seed-only view first.
++  bool publishForData() {
++    if (online) return true;
++    unsigned mode = &native_ufs_store_mode ? native_ufs_store_mode() : 0;
++    if (!mode || (isBig && mode != 2)) return false;
++    attachStore();
++    if (native_data_persist_gpt || native_data_persist_gpt_after ||
++        (mode == 2 ? !direct : native_data_persist_state != 1 && native_data_persist_state != 6)) {
++      IOLog("NativeRamBlock: store unavailable before publication (state=%u)\n", native_data_persist_state);
++      return false;
++    }
++    online = true;
++    native_ram_block_ready = 1;
++    deferredData = nullptr;
++    registerService();
++    return true;
++  }
++
+   bool available() const { return online && (memory || sparse.pages || isBig) && capacity; }
+   bool seedInfo(uint64_t *base,uint64_t *bytes,uint8_t hash[32]) {
+     if(!gate || !base || !bytes || !hash)return false;
+@@ -241,20 +263,14 @@
+   native_ram_block_bytes = logical;
+   native_ram_block_sparse=(sparse.pages||isBig)?1:0;
+   native_ram_block_resident_bytes=isBig?big.resident:sparse.pages?sparse.resident:logical;
+-  // Venus starts NativeUfsRoot on IOPlatformExpertDevice, before this IOBSD
+-  // personality. Its checked layout must be ready now; a failure is not a
+-  // reason to publish seed-only media and change its contents underneath APFS.
++  // Keep persistent Data entirely undiscoverable until the original
++  // native_ram_block_volume_seed call after SystemOS has mounted.
+   unsigned mode = &native_ufs_store_mode ? native_ufs_store_mode() : 0;
+   if (mode) {
+-    // The read-only loader below needs sparse.pages; big disks have no such
+-    // table. They require the direct read-write store, as in the Venus profile.
+     if (isBig && mode != 2) return false;
+-    attachStore();
+-    if (native_data_persist_gpt || native_data_persist_gpt_after ||
+-        (mode == 2 ? !direct : native_data_persist_state != 1 && native_data_persist_state != 6)) {
+-      IOLog("NativeRamBlock: store unavailable before publication (state=%u)\n", native_data_persist_state);
+-      return false;
+-    }
++    if (deferredData && deferredData != this) return false;
++    deferredData = this;
++    return true;
+   }
+   online = true;
+   native_ram_block_ready = 1;
+@@ -345,6 +361,7 @@
+ 
+ void NativeRamBlock::stop(IOService *provider)
+ {
++  if (deferredData == this) deferredData = nullptr;
+   if (gate) { IOLockLock(gate); online = false; IOLockUnlock(gate); }
+   IOBlockStorageDevice::stop(provider);
+ }
+@@ -366,6 +383,7 @@
+ 
+ void NativeRamBlock::free()
+ {
++  if (deferredData == this) deferredData = nullptr;
+   if (overlayBits) { IOFree(overlayBits, persist::bitmapBlocks(sparse.bytes / 4096) * persist::kBlock); overlayBits = nullptr; }
+   if (stage) { IOFree(stage, kStagePages * persist::kBlock); stage = nullptr; }
+   if (isBig) {
+@@ -383,6 +401,10 @@
+     uint64_t *seedBase,uint64_t *seedBytes,uint8_t seedDigest[32])
+ {
+   if (!uuid || strlen(uuid) != 36 || !device || !path || size < 6) return 0;
++  bool publishedNow = deferredData != nullptr;
++  if (publishedNow && !deferredData->publishForData()) return 0;
++  // The restore completed before publication; wait for APFS to expose its
++  // UUID using the documented bounded service wait (nanoseconds).
+   *device = NODEV;
+   path[0] = 0;
+   OSDictionary *matching = IOService::serviceMatching("IOMedia");
+@@ -396,6 +418,13 @@
+   }
+   bool ready = properties->setObject("UUID", wanted) && matching->setObject("IOPropertyMatch", properties);
+   wanted->release(); properties->release();
++  if (ready && publishedNow) {
++    auto published = IOService::waitForMatchingService(matching, 30000000000ULL);
++    if (!published) {
++      matching->release();
++      return 0;
++    }
++  }
+   OSIterator *iterator = ready ? IOService::getMatchingServices(matching) : nullptr;
+   matching->release();
+   if (!iterator) return 0;

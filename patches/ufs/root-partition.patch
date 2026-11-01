@@ -1,0 +1,32 @@
+--- a/RootLayout.h
++++ b/RootLayout.h
+@@ -106,7 +106,10 @@
+-  static const char wanted[] = "userdata";
++#ifndef NATIVE_UFS_ROOT_PARTITION
++#define NATIVE_UFS_ROOT_PARTITION "userdata"
++#endif
++  static const char wanted[] = NATIVE_UFS_ROOT_PARTITION;
+   bool found = false;
+   for (uint32_t index = 0; index < count; index++) {
+     const uint8_t *entry = gScratch + index * 128;
+     if (!rootEntryUsed (entry)) continue;
+     uint64_t entryFirst = le64 (entry + 32), entryLast = le64 (entry + 40);
+     if (entryFirst < first || entryLast < entryFirst || entryLast > last) {
+@@ -129,7 +132,7 @@
+     }
+     if (match) {
+       if (found) {
+-        *why = "duplicate userdata partition";
++        *why = "duplicate selected root partition";
+         return false;
+       }
+       layout->userdataFirst = le64 (entry + 32);
+@@ -138,7 +141,7 @@
+     }
+   }
+   if (!found || layout->userdataLast < layout->userdataFirst) {
+-    *why = "no userdata partition";
++    *why = "no selected root partition";
+     return false;
+   }
+   gRootDiagnostic.first = layout->userdataFirst;

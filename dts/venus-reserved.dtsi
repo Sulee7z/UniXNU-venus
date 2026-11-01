@@ -1,0 +1,90 @@
+// Generated from the hash-pinned Venus live FDT.
+/ {
+    reserved-memory {
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+        region@80000000 {
+            reg = <0x0 0x80000000 0x0 0x600000>;
+            no-map;
+        };
+        region@80600000 {
+            reg = <0x0 0x80600000 0x0 0x260000>;
+            no-map;
+        };
+        region@80860000 {
+            reg = <0x0 0x80860000 0x0 0x20000>;
+            no-map;
+        };
+        region@80880000 {
+            reg = <0x0 0x80880000 0x0 0x14000>;
+            no-map;
+        };
+        region@80900000 {
+            reg = <0x0 0x80900000 0x0 0x200000>;
+            no-map;
+        };
+        region@80b00000 {
+            reg = <0x0 0x80b00000 0x0 0x100000>;
+            no-map;
+        };
+        region@80c00000 {
+            reg = <0x0 0x80c00000 0x0 0x4600000>;
+            no-map;
+        };
+        region@85200000 {
+            reg = <0x0 0x85200000 0x0 0x500000>;
+            no-map;
+        };
+        region@85700000 {
+            reg = <0x0 0x85700000 0x0 0x500000>;
+            no-map;
+        };
+        region@85c00000 {
+            reg = <0x0 0x85c00000 0x0 0x500000>;
+            no-map;
+        };
+        region@86100000 {
+            reg = <0x0 0x86100000 0x0 0x3900000>;
+            no-map;
+        };
+        region@89a00000 {
+            reg = <0x0 0x89a00000 0x0 0x2f00000>;
+            no-map;
+        };
+        region@8c900000 {
+            reg = <0x0 0x8c900000 0x0 0x1e00000>;
+            no-map;
+        };
+        region@8e700000 {
+            reg = <0x0 0x8e700000 0x0 0x10000>;
+            no-map;
+        };
+        region@8e710000 {
+            reg = <0x0 0x8e710000 0x0 0xa000>;
+            no-map;
+        };
+        region@8e71a000 {
+            reg = <0x0 0x8e71a000 0x0 0x2000>;
+            no-map;
+        };
+        region@8e800000 {
+            reg = <0x0 0x8e800000 0x0 0x100000>;
+            no-map;
+        };
+        region@8f000000 {
+            reg = <0x0 0x8f000000 0x0 0x10000000>;
+            no-map;
+        };
+        region@d8800000 {
+            reg = <0x0 0xd8800000 0x0 0xa000000>;
+            no-map;
+        };
+        region@e2a00000 {
+            reg = <0x0 0xe2a00000 0x0 0x2300000>;
+        };
+        region@ec900000 {
+            reg = <0x0 0xec900000 0x0 0x100000>;
+        };
+    };
+};

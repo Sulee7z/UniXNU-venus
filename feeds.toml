@@ -1,0 +1,3 @@
+# Generic components and XNU are pinned by the selected upstream catalog/profile.
+# SM8350 is presently an unpublished local development source. Configure it in
+# local.toml. Add its real remote and reviewed commit here when published.

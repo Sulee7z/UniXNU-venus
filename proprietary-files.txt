@@ -1,0 +1,10 @@
+# Target-device inputs. Paths refer to the retained workspace evidence;
+# copy/private-path configuration belongs in .cache/firmware or local config.
+# SHA256                                                          Input
+f0f1e0d1d9fc16ee520cceec87487523afc576cfb4b6b4f73ef58bc9ae3f3b2c  live.dtb
+f1adee89d918a25bc62a1a5c05de3d652af121a252588db21a7b2580d3d3dafb  boot_a.img
+8d190092bf5ec858d8d4dd965270d0a23dc618fa461537a30356f922a650629b  vendor_boot_a.img
+7f71566167ddbf6db02e6c2e24af1cc74cde868ded1ed359a2d6e7287083c631  dtbo_a.img
+# Reference UEFI vendor binaries are pinned by the legacy firmware submodule:
+# a1501e0c2e642d6ac0d8f52c85af2a67b75a7799 (venus selection).
+# UFS/Adreno660/touch/WLAN/audio firmware extraction and individual hashes pending.

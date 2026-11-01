@@ -1,0 +1,2 @@
+# Board XNU changes will be added here after the selected profile baseline.
+# Legacy binary reset probes are diagnostic artifacts, not permanent patches.

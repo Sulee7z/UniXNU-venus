@@ -1,0 +1,5 @@
+# Upstream 16e592a OS boot-progress patch assumes this guarded call site exists.
+# This call site now invokes the audited original-PMGR service publisher. It
+# does not provide a hardware power backend. Remove this compatibility series when
+# the shared boot-progress patch no longer requires the optional board hook.
+arch:../../../patches/xnu/sheng-platform-power.patch
