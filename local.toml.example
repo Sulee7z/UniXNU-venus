@@ -1,4 +1,26 @@
-[[source]]
-kind = "soc"
-name = "sm8350"
-local = "../UniXNU-sm8350-common"
+# Copy to ignored local.toml. Paths are examples, not publication inputs.
+# The selected SoC/components come from the pinned source snapshot in feeds.toml.
+[repro]
+sdk = "/path/to/prepared-kernel-sdk"
+kdk_headers = "/path/to/KDK-25F84"
+kdk_extensions = "/path/to/KDK-25F84/System/Library/Extensions"
+kdk_reference = "/path/to/KDK-25F84/System/Library/Kernels/kernel.development.vmapple"
+uefi = "/path/to/pinned-Mu-Silicium"
+clang = "/path/to/llvm-auth-null/bin/clang-24"
+ld = "/path/to/cctools-lto/bin/ld"
+llvm_source = "/path/to/llvm-project"
+libc_source = "/path/to/Libc"
+libdispatch_source = "/path/to/libdispatch"
+xnu_source = "/path/to/pristine-xnu-12377.121.6"
+corecrypto2023 = "/path/to/external-corecrypto-2023"
+corecrypto2026 = "/path/to/external-corecrypto-2026"
+
+[build]
+uefi = "/path/to/pinned-Mu-Silicium"
+edk2 = "/path/to/pinned-Mu-Silicium/Mu_Basecore"
+data_ramdisk = "/path/to/original-066-data.dbr"
+owner_trust_cache = "/path/to/original-owner-trust-cache"
+gpu_addon = "/path/to/original-066-runtime-addon"
+out = "out"
+jobs = 8
+# Add unique_chip_id with the private platform seed. Never commit it.

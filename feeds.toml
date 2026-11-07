@@ -1,3 +1,43 @@
-# Generic components and XNU are pinned by the selected upstream catalog/profile.
-# SM8350 is presently an unpublished local development source. Configure it in
-# local.toml. Add its real remote and reviewed commit here when published.
+# Shared hardware descriptions and patched components are fixed to the source
+# snapshot commit in this repository; no external unpublished local path is used.
+
+[[source]]
+kind = "soc"
+name = "sm8350"
+git = "https://github.com/Sulee7z/UniXNU-venus.git"
+commit = "34aa09c02780ae5928fa70edb3dc9b76188557cf"
+path = "repro/soc/sm8350"
+
+[[source]]
+kind = "driver"
+name = "ArmCpu"
+git = "https://github.com/Sulee7z/UniXNU-venus.git"
+commit = "34aa09c02780ae5928fa70edb3dc9b76188557cf"
+path = "repro/native/sources/board/smp/sources"
+
+[[source]]
+kind = "driver"
+name = "ArmDTPlatform"
+git = "https://github.com/Sulee7z/UniXNU-venus.git"
+commit = "34aa09c02780ae5928fa70edb3dc9b76188557cf"
+path = "repro/native/sources/tree/build/platform-12377/ArmDTPlatform"
+
+[[source]]
+kind = "driver"
+name = "DarwinBoot"
+git = "https://github.com/Sulee7z/UniXNU-venus.git"
+commit = "34aa09c02780ae5928fa70edb3dc9b76188557cf"
+path = "repro/firmware/DarwinBoot"
+
+[[source]]
+kind = "package"
+name = "main"
+git = "https://github.com/Sulee7z/UniXNU-venus.git"
+commit = "34aa09c02780ae5928fa70edb3dc9b76188557cf"
+path = "repro/firmware/package"
+
+[[source]]
+kind = "refer"
+name = "edk2"
+git = "https://github.com/microsoft/mu_basecore.git"
+commit = "42d6d889f7c1f27e3226b44074b8a0ffe21cd988"

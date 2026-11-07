@@ -1,0 +1,4 @@
+# The manifest locks the exact architecture and flags of every source unit.
+# All platform/storage/HID/crypto archives are built by the aggregate recipe.
+CONFIG_XNU_BUILD_ARCHIVES=n
+CONFIG_XNU_REPRO_CONFIG="{tree}/kits/venus/repro-inputs.toml"

@@ -3,8 +3,8 @@ schema_version = 1
 [device]
 name = "venus"
 soc = "SM8350"
-os_profile = "ipados-17.7.11-21H461"
-summary = "The WSL zeta XNU12377.121.6 build now passes real QEMU UEFI/DarwinBoot handoff and arm_vm_init return with a256-byte random seed, EL1/MMU and4KiB pages. Root/Data/userspace for this kernel remain unqualified; see ZETA-WSL-ENTRY.md. Earlier XNU10063 phone baseline:039 touch normal, Metal apparently inactive;040 diagnostic absent;041 prepared. iPhone11,8 iOS17.7 inputs/root are prepared but its MH_FILESET arm64e conversion remains incomplete; see README.md."
+os_profile = "ios-26.5.2-23F84-zeta-arm64"
+summary = "066 user-confirmed ordinary ARM64 iOS26 source snapshot: Setup skipped, four selected CPUs,5GiB kernel memory and Data mode1. Source compilation, native linking and bounded KDK prelink/binding completed. Standard package integration remains experimental; clean-checkout end-to-end packaging is not claimed. Hardware observations refer to the original confirmed066 image. Earlier area records retain their historical validation scope."
 
 [[area]]
 id = "configuration"

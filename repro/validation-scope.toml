@@ -1,0 +1,33 @@
+schema_version = 1
+
+[confirmed_baseline]
+candidate = "066"
+os = "iOS 26.5.2 / 23F84 / iPhone18,2"
+arch = "arm64"
+xnu = "12377.121.6"
+boot_sha256 = "1ff87c0d93583f9d2602509991f22bbf12475e809c75fb28f0389cc7c3f7367f"
+kernel_sha256 = "a5d0c43d93b75ea3e77afe281c2a431455657162dd90cc2a56aacec0a0d5b2d7"
+native_kernel_sha256 = "cfb5258ce6f0670e378fce0e53dbc80fb941836b17a9156e5f9bf16ddcbb9b0f"
+kernel_memory_bytes = 5368709120
+firmware_high_memory_bytes = 6442450944
+cpu_affinities = [0, 1024, 1280, 1792]
+setup_selector = 0
+data_persistence_mode = 1
+data_seed_sha256 = "b42ce8659b2940c307137b8788cf370a7bdf51141546e9fadf9b80e24b2501e5"
+hardware_result = "One066 RAM boot and300-second capture; user subsequently confirmed success"
+limits = "Skipping Setup preserves existing done flags; it does not fix region selection or prove GPU/network/audio support"
+
+[publication_validation]
+source_export = "010"
+portable_snapshot = "006"
+representative_codegen_units = 3
+representative_instruction_sections_identical = true
+firmware_modules = 97
+firmware_code_and_runtime_data_identical_except_debug_metadata = true
+firmware_memory_descriptors_identical = true
+sdk_runtime_source_units = 7
+sdk_runtime_exact_instruction_matches = 6
+sdk_runtime_remaining_delta = "One equivalent128-bit zero MOVI encoding"
+complete_source_link_verified = true
+clean_checkout_package_verified = false
+publication_pushed = false

@@ -3,6 +3,17 @@
 Format-2 migration following the [UniXNU porting guide](https://unixnu.com/zh/porting/).
 Target hardware: M2011K2C, SM8350/Lahaina, 8 GB, 1440x3200.
 
+## 066 source snapshot
+
+This branch publishes the latest user-confirmed066 source and its retained
+source rebuild recipes. The default target is iOS26.5.2/23F84, ordinary ARM64,
+four selected CPUs,5GiB kernel memory, Setup skipped and Data mode1.
+
+`repro/` contains the source closure and build tools. Restricted corecrypto
+sources, Apple SDK/KDK inputs and installation data are external inputs.
+The standard package integration remains experimental; a clean-checkout
+end-to-end package build is not claimed. Earlier notes below are historical.
+
 The user prioritizes iOS bring-up and supplied the official dual-system guide
 for evaluation. OS/SystemOS layout and the explicit physical target partition
 must agree. The selected plan creates a separate 64 GiB unixnu partition and

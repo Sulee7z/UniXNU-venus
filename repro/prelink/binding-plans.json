@@ -1,0 +1,84 @@
+{
+  "amfi_callback063": {
+    "callback_plan": {
+      "original_amfi_sha256": "839a8702636914425c613c4d1d988d71aac99d5232417aad5e4b05b7a2067f98",
+      "original_environment": "0x68130",
+      "environment_bytes": 80,
+      "callbacks": [
+        {
+          "index": 0,
+          "original_va": "0x489ac",
+          "symbol": "freeOSObject(void const*)"
+        },
+        {
+          "index": 1,
+          "original_va": "0x489a4",
+          "symbol": "allocateOSBoolean(bool)"
+        },
+        {
+          "index": 2,
+          "original_va": "0x48998",
+          "symbol": "allocateOSNumber(long long)"
+        },
+        {
+          "index": 3,
+          "original_va": "0x48988",
+          "symbol": "allocateOSString(_CEString const*)"
+        },
+        {
+          "index": 4,
+          "original_va": "0x4892c",
+          "symbol": "allocateOSSymbol(_CEString const*)"
+        },
+        {
+          "index": 5,
+          "original_va": "0x48920",
+          "symbol": "allocateOSArray()"
+        },
+        {
+          "index": 6,
+          "original_va": "0x48914",
+          "symbol": "allocateOSDictionary()"
+        },
+        {
+          "index": 7,
+          "original_va": "0x48900",
+          "symbol": "allocateOSData(_CEData const*)"
+        },
+        {
+          "index": 8,
+          "original_va": "0x48874",
+          "symbol": "appendOSArray(void*, void const*)"
+        },
+        {
+          "index": 9,
+          "original_va": "0x487c0",
+          "symbol": "appendOSDictionary(void*, void const*, void const*)"
+        }
+      ]
+    }
+  },
+  "amfi_iterator064": {
+    "plan": {
+      "original_call": "0x477b8",
+      "original_word": "49fbff97",
+      "iterator": "0x464dc",
+      "key_callback": "0x4787c",
+      "original_returns_and_iteration_arguments_preserved": true
+    }
+  },
+  "amfi_stack065": {
+    "plan": {
+      "original_start": "0x462ec",
+      "original_end": "0x46314",
+      "original_refusal": "0x46498",
+      "threshold": 128,
+      "native_thread_stack_bounds": true,
+      "extra_observations": false
+    }
+  },
+  "amfi_callback063_enabled": true,
+  "amfi_iterator064_enabled": true,
+  "amfi_stack065_enabled": true,
+  "original_plan_provenance_sha256": "8950b2f37574f6d959f65bbfd52624cff3ed0efd782bacc353ffc96aa8b30fc4"
+}

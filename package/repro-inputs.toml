@@ -1,0 +1,20 @@
+# The build-tree kit symlink resolves this file back to the device repository.
+# No platform seed, SDK path, signing key or installation data is stored here.
+schema_version = 1
+device_directory = ".."
+local_inputs = "local.toml"
+source_manifest = "repro/native/manifest.json"
+source_inputs = "repro/inputs.toml"
+
+[outputs]
+sdk_runtime = "build/repro-sdk-runtime"
+native = "build/repro-native"
+kernel = "build/native/kernel.native.macho"
+
+[layout]
+xnu = "tree/.cache/xnu-12377.121.6-work"
+storage = "tree/refer/IOStorageFamily"
+display = "board/key-events/display/NativeLegacyDisplay.cpp"
+hid = "board/input-display/touch-sources/HidInputProbe.cpp"
+osaction = "tree/build/xnu-12377.121.6/ios-obj/DEVELOPMENT_ARM64_BCM2837/iokit/DriverKit/OSAction.h"
+seal_tool = "tools/seal-source-crypto-kernel.py"
