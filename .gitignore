@@ -9,3 +9,8 @@ __pycache__/
 evidence/
 board.toml.pre-*
 *.pre-bootprog
+
+# This is curated, hash-locked source, including XNU's historical directory
+# names. It contains no SDK binaries, object files or private installation data.
+!repro/native/sources/**/
+!repro/native/sources/**

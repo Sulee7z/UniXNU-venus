@@ -1,0 +1,1 @@
+#define NCONFIG_ARM_PFZ 0

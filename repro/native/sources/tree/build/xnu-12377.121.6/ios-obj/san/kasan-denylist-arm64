@@ -1,0 +1,133 @@
+# This file declares the list of source files that should be exempt from
+# AddressSanitizer instrumentation. Usually, this is because a file is used by
+# the AddressSanitizer runtime itself, or because the code executes before
+# the runtime has been initialized.
+
+[*]
+
+# Blanket ignore non-sanitized functions
+fun:__nosan_*
+
+# Try really hard to avoid panicing while debugging
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kdp/*
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kern/debug.c
+
+[{kernel-hwaddress,address}]
+
+# Exclude linker sets
+type:struct linker_set_entry
+type:linker_set_entry
+type:struct startup_entry
+type:startup_entry
+type:struct kalloc_type_view
+type:struct kernel_brk_descriptor
+type:kernel_brk_descriptor
+
+# Exclude per-cpu data structures the assembly accesses
+type:vm_statistics64
+type:struct vm_statistics64
+type:vm_statistics64_data_t
+type:struct processor
+type:processor
+
+# Exclude KASan itself
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-fakestack.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-x86_64.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-memintrinsics.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan_dynamic_denylist.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-classic.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-tbi.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-helper.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-report.c
+
+# Exclude other sanitizers
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/coverage/kcov.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/coverage/kcov_ksancov.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/coverage/kcov_stksz.c
+
+# Exclude dtrace function that does weird stack manipulations
+fun:fbt_perfCallback
+
+# Exclude leak detection code that reads all memory
+fun:_ZL18IOTrackingLeakScanPv
+
+# Exclude static_if dependencies
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/*/static_if.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kern/static_if_common.c
+# Exclude KASAN dependencies
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kern/btlog.c
+# XXX: could this be relaxed since fakestack is reentrant?
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kern/zalloc.c
+[.*]
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/ubsan.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/ubsan_log.c
+
+[bounds]
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/corecrypto/*
+
+[alignment]
+
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/libsa/bootstrap.cpp
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/bsd/net/necp_client.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/pexpert/arm/pe_identify_machine.c
+
+[object-size]
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/i386/locks_i386.c
+
+
+[signed-integer-overflow]
+
+# rdar://77997115&rdar://78024928
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/console/video_console.c
+
+# rdar://77999724
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kern/ledger.c
+
+# rdar://78030612
+fun:memorystatus_cmd_get_memlimit_excess_np
+
+# rdar://79501524
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kern/clock.c
+
+# rdar://80254468
+fun:wait4_nocancel
+
+# rdar://79446799 (only the biggest offender, tcp_xmit_timer)
+fun:tcp_xmit_timer
+# ARM64 specific denylist
+
+[{kernel-hwaddress,address}]
+
+# Exclude KASan runtime
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-arm64.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-tbi.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-classic.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/san/memory/kasan-helper.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/arm/machine_routines_common.c
+
+# These use a local variable to work out which stack we're on, but can end up with
+# a fakestack allocation.
+fun:ml_at_interrupt_context
+fun:ml_stack_remaining
+fun:ml_stack_base
+fun:ml_stack_size
+
+# These are required to fixup the kernelcache, which needs to happen before KASAN
+# initialization on SPTM systems.
+fun:arm_slide_rebase_and_sign_image
+fun:kernel_collection_adjust_fileset_entry_addrs
+fun:kernel_collection_adjust_mh_addrs
+fun:PE_set_kc_header
+fun:phystokv
+
+# C function that initializes KASAN on SPTM systems.
+fun:arm_init_kasan
+
+[kernel-hwaddress]
+# TBI specific
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/arm/model_dep.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kern/backtrace.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/arm64/cpu.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/kern/ast.c
+src:${WORK}/tree/.cache/xnu-12377.121.6-work/osfmk/arm64/pcb.c

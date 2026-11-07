@@ -1,0 +1,11 @@
+schema_version = 2
+
+[soc]
+name = "sm8350"
+description = "Qualcomm SM8350 native single-CPU entry support"
+source_repository = "https://github.com/torvalds/linux"
+source_revision = "v6.12"
+source_sha256 = "c217376cecfe22f567eea7d31ff66d14ade316c38e5a4b52e2c104bdb7b58616"
+
+[components]
+include = ["ArmCpu", "ArmDTPlatform"]

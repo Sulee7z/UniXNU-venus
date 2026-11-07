@@ -1,0 +1,51 @@
+# Preserve the explicit authenticated-null policy through pointer conversions.
+# LLVM 58c46bae... stores this policy, but its qualifier resign path still
+# unconditionally preserves raw null pointers. The default three-arg ABI remains unchanged.
+diff --git a/clang/lib/CodeGen/CGPointerAuth.cpp b/clang/lib/CodeGen/CGPointerAuth.cpp
+--- a/clang/lib/CodeGen/CGPointerAuth.cpp
++++ b/clang/lib/CodeGen/CGPointerAuth.cpp
+@@ -362,15 +362,19 @@ CodeGenFunction::emitPointerAuthResign(
+   if (!CurAuthInfo && !NewAuthInfo)
+     return Value;
+ 
++  const bool CurAuthNull = CurAuthInfo && CurAuthInfo.authenticatesNullValues();
++  const bool NewAuthNull = NewAuthInfo && NewAuthInfo.authenticatesNullValues();
++  const bool PreserveNull = !CurAuthNull && !NewAuthNull;
++
+   llvm::Value *Null = nullptr;
+-  // If the value is obviously null, we're done.
++  // Raw null is exempt only under the nullable schema.
+   if (auto *PointerValue = dyn_cast<llvm::PointerType>(Value->getType())) {
+     Null = CGM.getNullPointer(PointerValue, Type);
+   } else {
+     assert(Value->getType()->isIntegerTy());
+     Null = llvm::ConstantInt::get(IntPtrTy, 0);
+   }
+-  if (Value == Null)
++  if (Value == Null && PreserveNull)
+     return Value;
+ 
+   // If both schemas sign the same way, we're done.
+@@ -385,11 +389,21 @@ CodeGenFunction::emitPointerAuthResign(
+       return Value;
+   }
+ 
++  // Different null policies need a plain-pointer intermediate: nullable null
++  // must not be authenticated, and authenticated null must not stay signed
++  // when converting to a nullable destination.
++  if (CurAuthInfo && NewAuthInfo && CurAuthNull != NewAuthNull) {
++    CGPointerAuthInfo Plain;
++    Value = emitPointerAuthResign(Value, Type, CurAuthInfo, Plain, IsKnownNonNull);
++    return emitPointerAuthResign(Value, Type, Plain, NewAuthInfo, false);
++  }
++
+   llvm::BasicBlock *InitBB = Builder.GetInsertBlock();
+   llvm::BasicBlock *ResignBB = nullptr, *ContBB = nullptr;
+ 
+   // Null pointers have to be mapped to null, and the ptrauth_resign
+   // intrinsic doesn't do that.
+-  if (!IsKnownNonNull && !llvm::isKnownNonZero(Value, CGM.getDataLayout())) {
++  if (PreserveNull && !IsKnownNonNull &&
++      !llvm::isKnownNonZero(Value, CGM.getDataLayout())) {
+     ContBB = createBasicBlock("resign.cont");
+     ResignBB = createBasicBlock("resign.nonnull");

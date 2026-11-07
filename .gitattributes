@@ -1,0 +1,4 @@
+* text=auto eol=lf
+# Hash-locked imported inputs must retain their exact bytes on every host.
+repro/** -text
+profiles/** -text

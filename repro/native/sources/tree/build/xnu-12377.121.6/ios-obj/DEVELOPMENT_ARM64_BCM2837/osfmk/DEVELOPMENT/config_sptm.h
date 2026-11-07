@@ -1,0 +1,1 @@
+#define NCONFIG_SPTM 0

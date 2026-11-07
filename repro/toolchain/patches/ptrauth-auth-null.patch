@@ -1,0 +1,95 @@
+# LLVM 58c46bae21181fb4240cf964461bea738d96d50e already implements
+# AuthenticatesNullValues in its type and code-generation schema. Expose that
+# existing schema through the fourth __ptrauth argument used by XNU headers.
+diff --git a/clang/include/clang/Basic/Attr.td b/clang/include/clang/Basic/Attr.td
+--- a/clang/include/clang/Basic/Attr.td
++++ b/clang/include/clang/Basic/Attr.td
+@@ -3835,7 +3835,8 @@ def PointerAuth : TypeAttr {
+   let Spellings = [CustomKeyword<"__ptrauth">];
+   let Args = [IntArgument<"Key">,
+               BoolArgument<"AddressDiscriminated", 1>,
+-              IntArgument<"ExtraDiscriminator", 1>];
++              IntArgument<"ExtraDiscriminator", 1>,
++              StringArgument<"Options", 1>];
+   let Documentation = [PtrAuthDocs];
+ }
+ 
+diff --git a/clang/include/clang/Basic/DiagnosticParseKinds.td b/clang/include/clang/Basic/DiagnosticParseKinds.td
+--- a/clang/include/clang/Basic/DiagnosticParseKinds.td
++++ b/clang/include/clang/Basic/DiagnosticParseKinds.td
+@@ -1627,6 +1627,6 @@
+   InGroup<CudaCompat>;
+ 
+ def err_ptrauth_qualifier_bad_arg_count : Error<
+-  "'__ptrauth' qualifier must take between 1 and 3 arguments">;
++  "'__ptrauth' qualifier must take between 1 and 4 arguments">;
+ 
+ def warn_cuda_attr_lambda_position : Warning<
+diff --git a/clang/include/clang/Basic/DiagnosticSemaKinds.td b/clang/include/clang/Basic/DiagnosticSemaKinds.td
+--- a/clang/include/clang/Basic/DiagnosticSemaKinds.td
++++ b/clang/include/clang/Basic/DiagnosticSemaKinds.td
+@@ -1094,7 +1094,10 @@
+ def err_ptrauth_qualifier_cast : Error<
+   "cannot cast to '__ptrauth'-qualified type %0">;
+ def err_ptrauth_qualifier_invalid_target : Error<
+   "'__ptrauth' qualifier only applies to pointer or pointer sized integer "
+   "types; %0 is invalid">;
++def err_ptrauth_qualifier_invalid_option : Error<
++  "unsupported '__ptrauth' qualifier option; expected the string literal "
++  "'authenticates-null-values'">;
+ def err_ptrauth_qualifier_redundant: Error<
+   "type %0 is already '__ptrauth'-qualified">;
+diff --git a/clang/lib/Parse/ParseDecl.cpp b/clang/lib/Parse/ParseDecl.cpp
+--- a/clang/lib/Parse/ParseDecl.cpp
++++ b/clang/lib/Parse/ParseDecl.cpp
+@@ -3200,7 +3200,7 @@ void Parser::ParsePtrauthQualifier(ParsedAttributes &Attrs) {
+   T.consumeClose();
+   SourceLocation EndLoc = T.getCloseLocation();
+ 
+-  if (ArgExprs.empty() || ArgExprs.size() > 3) {
++  if (ArgExprs.empty() || ArgExprs.size() > 4) {
+     Diag(KwLoc, diag::err_ptrauth_qualifier_bad_arg_count);
+     return;
+   }
+diff --git a/clang/lib/Sema/SemaType.cpp b/clang/lib/Sema/SemaType.cpp
+--- a/clang/lib/Sema/SemaType.cpp
++++ b/clang/lib/Sema/SemaType.cpp
+@@ -8659,14 +8659,27 @@
+ static void HandlePtrAuthQualifier(ASTContext &Ctx, QualType &T,
+                                    const ParsedAttr &Attr, Sema &S) {
+ 
+-  assert((Attr.getNumArgs() > 0 && Attr.getNumArgs() <= 3) &&
+-         "__ptrauth qualifier takes between 1 and 3 arguments");
++  assert((Attr.getNumArgs() > 0 && Attr.getNumArgs() <= 4) &&
++         "__ptrauth qualifier takes between 1 and 4 arguments");
+   Expr *KeyArg = Attr.getArgAsExpr(0);
+   Expr *IsAddressDiscriminatedArg =
+       Attr.getNumArgs() >= 2 ? Attr.getArgAsExpr(1) : nullptr;
+   Expr *ExtraDiscriminatorArg =
+       Attr.getNumArgs() >= 3 ? Attr.getArgAsExpr(2) : nullptr;
+ 
++  bool AuthenticatesNullValues = false;
++  if (Attr.getNumArgs() == 4) {
++    const Expr *OptionExpr = Attr.getArgAsExpr(3)->IgnoreParenImpCasts();
++    const auto *Option = dyn_cast<StringLiteral>(OptionExpr);
++    if (!Option || Option->getCharByteWidth() != 1 ||
++        Option->getString() != "authenticates-null-values") {
++      S.Diag(Attr.getLoc(), diag::err_ptrauth_qualifier_invalid_option);
++      Attr.setInvalid();
++      return;
++    }
++    AuthenticatesNullValues = true;
++  }
++
+   unsigned Key;
+   if (S.checkConstantPointerAuthKey(KeyArg, Key)) {
+     Attr.setInvalid();
+@@ -8710,7 +8723,7 @@
+   PointerAuthQualifier Qual = PointerAuthQualifier::Create(
+       Key, IsAddressDiscriminated, ExtraDiscriminator,
+       PointerAuthenticationMode::SignAndAuth, /*IsIsaPointer=*/false,
+-      /*AuthenticatesNullValues=*/false);
++      AuthenticatesNullValues);
+   T = S.Context.getPointerAuthType(T, Qual);
+ }
+ 

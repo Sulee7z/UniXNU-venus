@@ -1,0 +1,1 @@
+#define NCONFIG_UCOREDUMP 0

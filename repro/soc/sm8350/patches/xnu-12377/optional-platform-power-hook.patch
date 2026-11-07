@@ -1,0 +1,18 @@
+# Shared conditional call-site prerequisite of sheng's boot-progress patch.
+# Source: UniXNU-sm8550-common a9f45dc60c035084b95463781538380f4c3606c9.
+# This contains no SM8550 register operations; the board supplies any implementation.
+diff --git a/bsd/kern/bsd_init.c b/bsd/kern/bsd_init.c
+--- a/bsd/kern/bsd_init.c
++++ b/bsd/kern/bsd_init.c
+@@ -776,6 +776,11 @@ bsd_init(void)
+ 	bsd_init_kprintf("calling bsd_bufferinit\n");
+ 	bsd_bufferinit();
+ 
++#if defined(XNU_SHENG_PMGR) && XNU_SHENG_PMGR
++	extern void sheng_pmgr_run(void);
++	sheng_pmgr_run();
++#endif
++
+ 	/*
+ 	 * Initialize the calendar.
+ 	 */
